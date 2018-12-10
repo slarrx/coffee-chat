@@ -2,6 +2,10 @@
 
 namespace coffee_chat {
 
+Client::Client(char* ip, int port) {
+
+}
+
 void Client::Run() {
 
 }

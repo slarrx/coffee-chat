@@ -3,6 +3,8 @@
 
 namespace coffee_chat {
 
+const int kDefaultPort = 5020;
+
 class Connection {
  public:
   Connection();
