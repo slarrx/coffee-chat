@@ -30,3 +30,12 @@
 *.exe
 *.out
 *.app
+
+# OS generated files
+.DS_Store
+
+# IDE generated files
+.idea/
+
+# Build files
+build/
