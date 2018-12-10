@@ -7,12 +7,13 @@
 int main(int argc, char* argv[]) {
   std::cout << "The server is starting..." << std::endl;
 
-  int port = argc > 1 ?
-             static_cast<int>(strtol(argv[1], nullptr, 10)) :
-             coffee_chat::kDefaultPort;
+  if (argc > 1) {
+    coffee_chat::Server::default_port(
+        static_cast<int>(strtol(argv[1], nullptr, 10)));
+  }
 
   try {
-    auto server = std::make_shared<coffee_chat::Server>(port);
+    auto server = std::make_shared<coffee_chat::Server>();
     std::cout << "The server is started." << std::endl;
     server->Run();
   } catch (const std::exception& ex) {

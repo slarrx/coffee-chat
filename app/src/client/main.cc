@@ -12,12 +12,13 @@ int main(int argc, char* argv[]) {
 
   std::cout << "The client is starting..." << std::endl;
 
-  int port = argc > 2 ?
-             static_cast<int>(strtol(argv[2], nullptr, 10)) :
-             coffee_chat::kDefaultPort;
+  if (argc > 2) {
+    coffee_chat::Client::default_port(
+        static_cast<int>(strtol(argv[2], nullptr, 10)));
+  }
 
   try {
-    auto client = std::make_shared<coffee_chat::Client>(argv[1], port);
+    auto client = std::make_shared<coffee_chat::Client>(argv[1]);
     std::cout << "The client is started." << std::endl;
     client->Run();
   } catch (const std::exception& ex) {

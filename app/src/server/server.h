@@ -7,7 +7,7 @@ namespace coffee_chat {
 
 class Server : public Connection {
  public:
-  explicit Server(int = kDefaultPort);
+  explicit Server(int = default_port_);
   void Run() override;
  private:
 };

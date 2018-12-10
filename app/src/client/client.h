@@ -7,7 +7,7 @@ namespace coffee_chat {
 
 class Client : public Connection {
  public:
-  explicit Client(char*, int = kDefaultPort);
+  explicit Client(char*, int = default_port_);
   void Run() override;
  private:
 };

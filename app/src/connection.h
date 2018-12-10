@@ -1,15 +1,20 @@
 #ifndef COFFEE_CHAT_CONNECTION_H_
 #define COFFEE_CHAT_CONNECTION_H_
 
-namespace coffee_chat {
+#include <string>
 
-const int kDefaultPort = 5020;
+namespace coffee_chat {
 
 class Connection {
  public:
+  static int default_port();
+  static void default_port(int);
   Connection();
   virtual void Run() = 0;
  protected:
+  std::string Input();
+
+  static int default_port_;
   int socket_;
 };
 
