@@ -5,7 +5,10 @@ namespace coffee_chat {
 
 class Connection {
  public:
+  Connection();
+  virtual void Run() = 0;
  protected:
+  int socket_;
 };
 
 }  // namespace coffee_chat

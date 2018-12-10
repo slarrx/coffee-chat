@@ -7,6 +7,7 @@ namespace coffee_chat {
 
 class Server : public Connection {
  public:
+  void Run() override;
  private:
 };
 
