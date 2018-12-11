@@ -19,6 +19,7 @@ class Connection {
   static std::string Input();
   int Epoll(int, epoll_event*, int, std::map<int, User>* = nullptr);
   void SendMessage(int, std::string);
+  bool Stop(std::map<int, User>* = nullptr);
 
   static int default_port_;
   int socket_;

@@ -1,6 +1,8 @@
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
+#include <unistd.h>
+#include <algorithm>
 #include <cerrno>
 #include <iostream>
 #include <map>
@@ -48,14 +50,15 @@ int Connection::Epoll(int max_ready_events, epoll_event* ready_events,
     size_t count_events = users.size() + 2;
     events = new epoll_event[count_events];
 
-    for (int i = 2; i < count_events; ++i) {
-      events[i].data.ptr = &users[i - 2];
-      events[i].events = EPOLLIN;
-      if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, users[i - 2].socket_,
-                    &events[i]) < 0) {
+    std::for_each(users.begin(), users.end(), [&](std::pair<int, User> user) {
+      --count_events;
+      events[count_events].data.ptr = &user.second;
+      events[count_events].events = EPOLLIN;
+      if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, user.second.socket_,
+                    &events[count_events]) < 0) {
         throw std::runtime_error("epoll_ctl()");
       }
-    }
+    });
   } else {
     events = new epoll_event;
   }
@@ -64,7 +67,7 @@ int Connection::Epoll(int max_ready_events, epoll_event* ready_events,
   events[0].events = EPOLLIN;
   epoll_ctl(epoll_fd, EPOLL_CTL_ADD, socket_, &events[0]);
 
-  User signal_container(-1, signal);
+  User signal_container(signal, -1);
   events[1].data.ptr = &signal_container;
   events[1].events = EPOLLIN;
   epoll_ctl(epoll_fd, EPOLL_CTL_ADD, signal, &events[1]);
@@ -80,6 +83,31 @@ int Connection::Epoll(int max_ready_events, epoll_event* ready_events,
 
 void Connection::SendMessage(int socket, std::string message) {
   send(socket, message.c_str(), message.length(), 0);
+}
+
+bool Connection::Stop(std::map<int, User>* users_ptr) {
+  if (users_ptr != nullptr) {
+    auto& users = *users_ptr;
+    std::for_each(users.begin(), users.end(), [](std::pair<int, User> user) {
+      if (shutdown(user.second.socket_, SHUT_RDWR) < 0) {
+        throw std::runtime_error("shutdown()");
+      }
+      while (true) {
+        if (close(user.second.socket_) == 0) { break; }
+        if (errno == EINTR) { continue; }
+        throw std::runtime_error("close()");
+      }
+    });
+  }
+  if (shutdown(socket_, SHUT_RDWR) < 0) {
+    throw std::runtime_error("shutdown()");
+  }
+  while (true) {
+    if (close(socket_) == 0) { break; }
+    if (errno == EINTR) { continue; }
+    throw std::runtime_error("close()");
+  }
+  return true;
 }
 
 }  // namespace coffee_chat

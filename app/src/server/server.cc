@@ -4,6 +4,7 @@
 #include <sys/eventfd.h>
 #include <sys/socket.h>
 #include <cerrno>
+#include <iostream>
 #include <stdexcept>
 #include <thread>
 
@@ -27,8 +28,10 @@ Server::Server(int port) : id_counter_(0) {
 }
 
 void Server::Run() {
+  bool exit = false;
   int signal = eventfd(0, EFD_NONBLOCK);
   std::thread input_thread(InputHanding, signal);
+  input_thread.detach();
   while (true) {
     epoll_event events[20] = {0};
     int count_events = Epoll(20, events, signal, &users_);
@@ -36,14 +39,33 @@ void Server::Run() {
     for (int i = 0; i < count_events; ++i) {
       if (events[i].data.ptr == nullptr) {
         Accept();
+      } else {
+        auto& user = *(User*)events[i].data.ptr;
+        if (user.socket_ == signal) {
+          exit = Stop(&users_);
+          break;
+        } else {
+          // TODO: packet processing
+        }
       }
     }
 
+    if (exit) { break; }
   }
 }
 
 void Server::InputHanding(int signal) {
-
+  int exit_flag = 0;
+  do {
+    exit_flag = 1;
+    std::string command = Input();
+    if (command == "stop") {
+      eventfd_write(signal, 1);
+    } else {
+      std::cout << "Unknown command" << std::endl;
+      exit_flag = 0;
+    }
+  } while (exit_flag == 0);
 }
 
 void Server::Accept() {
@@ -68,7 +90,7 @@ int Server::AddUser(int socket) {
     free_ids_.erase(free_ids_.begin());
   }
 
-  users_[id] = User(id, socket);
+  users_[id] = User(socket, id);
   return id;
 }
 
