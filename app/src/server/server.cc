@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <cerrno>
 #include <iostream>
+#include <queue>
 #include <stdexcept>
 #include <thread>
 
@@ -30,8 +31,12 @@ Server::Server(int port) : id_counter_(0) {
 void Server::Run() {
   bool exit = false;
   int signal = eventfd(0, EFD_NONBLOCK);
+
   std::thread input_thread(InputHanding, signal);
+  std::thread handler_thread(Handler::Run, &users_);
   input_thread.detach();
+  handler_thread.detach();
+
   while (true) {
     epoll_event events[20] = {0};
     int count_events = Epoll(20, events, signal, &users_);
@@ -45,7 +50,7 @@ void Server::Run() {
           exit = Stop(&users_);
           break;
         } else {
-          // TODO: packet processing
+          ProcessPackages(user.socket_);
         }
       }
     }
@@ -92,6 +97,15 @@ int Server::AddUser(int socket) {
 
   users_[id] = User(socket, id);
   return id;
+}
+
+void Server::ProcessPackages(int socket) {
+  std::string package = RecvMessage(socket);
+  auto packages = ParseMessage(package);
+  while (!packages.empty()) {
+    handler_.Push(packages.front());
+    packages.pop();
+  }
 }
 
 }  // namespace coffee_chat

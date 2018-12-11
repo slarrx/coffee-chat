@@ -6,6 +6,7 @@
 #include <cerrno>
 #include <iostream>
 #include <map>
+#include <queue>
 #include <stdexcept>
 
 #include "connection.h"
@@ -22,9 +23,7 @@ Connection::Connection() : socket_(socket(AF_INET, SOCK_STREAM, 0)) {
   fcntl(socket_, F_SETFL, O_NONBLOCK);
 }
 
-int Connection::default_port() {
-  return default_port_;
-}
+int Connection::default_port() { return default_port_; }
 
 void Connection::default_port(int default_port) {
   default_port_ = default_port;
@@ -108,6 +107,26 @@ bool Connection::Stop(std::map<int, User>* users_ptr) {
     throw std::runtime_error("close()");
   }
   return true;
+}
+
+std::string Connection::RecvMessage(int socket) {
+  char buf[kMaxMessageLength] = {0};
+  std::string message;
+  int count_char = 0;
+  ssize_t recv_char = 0;
+  do {
+    recv_char = recv(socket, buf, kMaxMessageLength, 0);
+    count_char += recv_char;
+    if (recv_char > 0 && count_char < kMaxMessageLength) {
+      message += buf;
+    } else {
+      break;
+    }
+  } while (true);
+  return message;
+}
+
+std::queue<std::string> Connection::ParseMessage(std::string& message) {
 }
 
 }  // namespace coffee_chat

@@ -3,8 +3,11 @@
 
 #include <map>
 #include <set>
+#include <handler.h>
+
 
 #include "connection.h"
+#include "handler.h"
 #include "user.h"
 
 namespace coffee_chat {
@@ -17,10 +20,12 @@ class Server : public Connection {
   static void InputHanding(int);
   void Accept();
   int AddUser(int);
+  void ProcessPackages(int);
 
   int id_counter_;
   std::set<int> free_ids_;
   std::map<int, User> users_;
+  Handler handler_;
 };
 
 }  // namespace coffee_chat
