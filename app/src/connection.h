@@ -1,7 +1,11 @@
 #ifndef COFFEE_CHAT_CONNECTION_H_
 #define COFFEE_CHAT_CONNECTION_H_
 
+#include <sys/epoll.h>
+#include <map>
 #include <string>
+
+#include "user.h"
 
 namespace coffee_chat {
 
@@ -12,7 +16,9 @@ class Connection {
   Connection();
   virtual void Run() = 0;
  protected:
-  std::string Input();
+  static std::string Input();
+  int Epoll(int, epoll_event*, int, std::map<int, User>* = nullptr);
+  void SendMessage(int, std::string);
 
   static int default_port_;
   int socket_;

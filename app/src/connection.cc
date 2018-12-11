@@ -1,10 +1,13 @@
 #include <fcntl.h>
+#include <sys/epoll.h>
 #include <sys/socket.h>
 #include <cerrno>
 #include <iostream>
+#include <map>
 #include <stdexcept>
 
 #include "connection.h"
+#include "user.h"
 
 namespace coffee_chat {
 
@@ -30,6 +33,53 @@ std::string Connection::Input() {
   std::cout << "-> ";
   std::cin >> message;
   return message;
+}
+
+int Connection::Epoll(int max_ready_events, epoll_event* ready_events,
+                      int signal, std::map<int, User>* users_pointer) {
+  int epoll_fd = epoll_create(0xFFF);
+  if (epoll_fd < 0) {
+    throw std::runtime_error("epoll_create()");
+  }
+
+  epoll_event* events = nullptr;
+  if (users_pointer != nullptr) {
+    auto& users = *users_pointer;
+    size_t count_events = users.size() + 2;
+    events = new epoll_event[count_events];
+
+    for (int i = 2; i < count_events; ++i) {
+      events[i].data.ptr = &users[i - 2];
+      events[i].events = EPOLLIN;
+      if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, users[i - 2].socket_,
+                    &events[i]) < 0) {
+        throw std::runtime_error("epoll_ctl()");
+      }
+    }
+  } else {
+    events = new epoll_event;
+  }
+
+  events[0].data.ptr = nullptr;
+  events[0].events = EPOLLIN;
+  epoll_ctl(epoll_fd, EPOLL_CTL_ADD, socket_, &events[0]);
+
+  User signal_container(-1, signal);
+  events[1].data.ptr = &signal_container;
+  events[1].events = EPOLLIN;
+  epoll_ctl(epoll_fd, EPOLL_CTL_ADD, signal, &events[1]);
+
+  int count_ready = epoll_wait(epoll_fd, ready_events, max_ready_events, -1);
+  if (count_ready < 0) {
+    throw std::runtime_error("epoll_wait()");
+  }
+
+  delete[] events;
+  return count_ready;
+}
+
+void Connection::SendMessage(int socket, std::string message) {
+  send(socket, message.c_str(), message.length(), 0);
 }
 
 }  // namespace coffee_chat
