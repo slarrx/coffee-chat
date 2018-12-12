@@ -3,7 +3,7 @@ project(server)
 
 set(CMAKE_CXX_STANDARD 11)
 set(SOURCE_SERVER main.cc server.cc server.h ../connection.cc ../connection.h
-    ../handler.cc ../handler.h ../user.cc ../user.h)
+    ../handler.cc ../handler.h ../user.h)
 
 include_directories(../)
 

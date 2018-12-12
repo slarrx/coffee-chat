@@ -18,9 +18,9 @@ class Server : public Connection {
   void Run() override;
  private:
   static void InputHanding(int);
-  void Accept();
+  void AcceptConnection();
   int AddUser(int);
-  void ProcessPackages(int);
+  void ProcessPackages(User&);
 
   int id_counter_;
   std::set<int> free_ids_;

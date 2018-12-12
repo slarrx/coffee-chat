@@ -24,6 +24,7 @@ class Connection {
   void SendMessage(int, std::string);
   std::string RecvMessage(int);
   std::queue<std::string> ParseMessage(std::string&);
+  void CloseConnection(int);
   bool Stop(std::map<int, User>* = nullptr);
 
   static int default_port_;

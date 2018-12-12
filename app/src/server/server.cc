@@ -3,6 +3,7 @@
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <sys/socket.h>
+#include <algorithm>
 #include <cerrno>
 #include <iostream>
 #include <queue>
@@ -10,6 +11,7 @@
 #include <thread>
 
 #include "server.h"
+#include "user.h"
 
 namespace coffee_chat {
 
@@ -33,7 +35,7 @@ void Server::Run() {
   int signal = eventfd(0, EFD_NONBLOCK);
 
   std::thread input_thread(InputHanding, signal);
-  std::thread handler_thread(Handler::Run, &users_);
+  std::thread handler_thread(Handler::Run, &handler_, &users_);
   input_thread.detach();
   handler_thread.detach();
 
@@ -43,17 +45,24 @@ void Server::Run() {
 
     for (int i = 0; i < count_events; ++i) {
       if (events[i].data.ptr == nullptr) {
-        Accept();
+        AcceptConnection();
       } else {
-        auto& user = *(User*)events[i].data.ptr;
-        if (user.socket_ == signal) {
+        auto* user = (User*)events[i].data.ptr;
+        if (user->socket_ == signal) {
           exit = Stop(&users_);
           break;
         } else {
-          ProcessPackages(user.socket_);
+          ProcessPackages(*user);
         }
       }
     }
+
+    std::for_each(users_.begin(), users_.end(), [&](std::pair<int, User> user) {
+      while (!user.second.buffer_.empty()) {
+        SendMessage(user.second.socket_, user.second.buffer_.front());
+        user.second.buffer_.pop();
+      }
+    });
 
     if (exit) { break; }
   }
@@ -73,7 +82,7 @@ void Server::InputHanding(int signal) {
   } while (exit_flag == 0);
 }
 
-void Server::Accept() {
+void Server::AcceptConnection() {
   int user_fd = 0;
   while (true) {
     user_fd = accept(socket_, nullptr, nullptr);
@@ -99,13 +108,14 @@ int Server::AddUser(int socket) {
   return id;
 }
 
-void Server::ProcessPackages(int socket) {
-  std::string package = RecvMessage(socket);
-  auto packages = ParseMessage(package);
-  while (!packages.empty()) {
-    handler_.Push(packages.front());
-    packages.pop();
+void Server::ProcessPackages(User& user) {
+  std::string package = RecvMessage(user.socket_);
+  if (package.length() == 0) {
+    CloseConnection(user.socket_);
+  } else {
+    handler_.Push(ParseMessage(package), user.id_);
   }
+
 }
 
 }  // namespace coffee_chat

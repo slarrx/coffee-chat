@@ -14,7 +14,7 @@
 
 namespace coffee_chat {
 
-int Connection::default_port_ = 5020;
+int Connection::default_port_ = 5021;
 
 Connection::Connection() : socket_(socket(AF_INET, SOCK_STREAM, 0)) {
   if (socket_ < 0) {
@@ -84,31 +84,6 @@ void Connection::SendMessage(int socket, std::string message) {
   send(socket, message.c_str(), message.length(), 0);
 }
 
-bool Connection::Stop(std::map<int, User>* users_ptr) {
-  if (users_ptr != nullptr) {
-    auto& users = *users_ptr;
-    std::for_each(users.begin(), users.end(), [](std::pair<int, User> user) {
-      if (shutdown(user.second.socket_, SHUT_RDWR) < 0) {
-        throw std::runtime_error("shutdown()");
-      }
-      while (true) {
-        if (close(user.second.socket_) == 0) { break; }
-        if (errno == EINTR) { continue; }
-        throw std::runtime_error("close()");
-      }
-    });
-  }
-  if (shutdown(socket_, SHUT_RDWR) < 0) {
-    throw std::runtime_error("shutdown()");
-  }
-  while (true) {
-    if (close(socket_) == 0) { break; }
-    if (errno == EINTR) { continue; }
-    throw std::runtime_error("close()");
-  }
-  return true;
-}
-
 std::string Connection::RecvMessage(int socket) {
   char buf[kMaxMessageLength] = {0};
   std::string message;
@@ -127,6 +102,36 @@ std::string Connection::RecvMessage(int socket) {
 }
 
 std::queue<std::string> Connection::ParseMessage(std::string& message) {
+  std::queue<std::string> packages;
+  size_t next = 0;
+  size_t prev = 0;
+  while ((next = message.find('\n', prev)) != std::string::npos) {
+    packages.push(message.substr(prev, next - prev));
+    prev = next + 1;
+  }
+  return packages;
+}
+
+void Connection::CloseConnection(int socket) {
+  if (shutdown(socket, SHUT_RDWR) < 0) {
+    throw std::runtime_error("shutdown()");
+  }
+  while (true) {
+    if (close(socket) == 0) { break; }
+    if (errno == EINTR) { continue; }
+    throw std::runtime_error("close()");
+  }
+}
+
+bool Connection::Stop(std::map<int, User>* users_ptr) {
+  if (users_ptr != nullptr) {
+    auto& users = *users_ptr;
+    std::for_each(users.begin(), users.end(), [&](std::pair<int, User> user) {
+      CloseConnection(user.second.socket_);
+    });
+  }
+  CloseConnection(socket_);
+  return true;
 }
 
 }  // namespace coffee_chat
