@@ -4,6 +4,7 @@
 #include <map>
 #include <mutex>
 #include <queue>
+#include <sstream>
 #include <string>
 
 #include "user.h"
@@ -11,15 +12,18 @@
 namespace coffee_chat {
 
 class Handler {
- private:
-  friend class Server;
-
-  Handler() = default;
+ public:
+  Handler();
   static void Run(Handler*, std::map<int, User>*);
-  void Push(std::queue<std::string>, int);
+  void Push(std::queue<std::string>&, int);
+ private:
+  void PutPackage(User&, std::string);
+  void RunMsg(int, std::istringstream&);
+  void RunQuit(User&);
 
-  std::queue<std::string> buffer_;
-  std::mutex buffer_mutex_;
+  std::map<int, User>* users_;
+  std::queue<std::string> packages_;
+  std::mutex packages_mutex_;
 };
 
 }  // namespace coffee_chat

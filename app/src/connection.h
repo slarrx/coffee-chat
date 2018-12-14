@@ -1,6 +1,7 @@
 #ifndef COFFEE_CHAT_CONNECTION_H_
 #define COFFEE_CHAT_CONNECTION_H_
 
+#include <netinet/in.h>
 #include <sys/epoll.h>
 #include <map>
 #include <queue>
@@ -18,17 +19,20 @@ class Connection {
   static void default_port(int);
   Connection();
   virtual void Run() = 0;
+
  protected:
   static std::string Input();
-  int Epoll(int, epoll_event*, int, std::map<int, User>* = nullptr);
-  void SendMessage(int, std::string);
-  std::string RecvMessage(int);
-  std::queue<std::string> ParseMessage(std::string&);
+  sockaddr MakeAddress(int, char* = nullptr);
+  void SendPackage(int, std::string);
+  std::string RecvPackage(int);
+  std::queue<std::string> ParsePackage(std::string&);
+  int Epoll(epoll_event*, int, std::map<int, User>* = nullptr);
   void CloseConnection(int);
-  bool Stop(std::map<int, User>* = nullptr);
+  void Stop(std::map<int, User>* = nullptr);
 
   static int default_port_;
   int socket_;
+  int signal_;
 };
 
 }  // namespace coffee_chat

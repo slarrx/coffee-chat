@@ -3,25 +3,22 @@
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <sys/socket.h>
-#include <algorithm>
 #include <cerrno>
 #include <iostream>
+#include <map>
 #include <queue>
 #include <stdexcept>
 #include <thread>
 
+#include "handler.h"
 #include "server.h"
 #include "user.h"
 
 namespace coffee_chat {
 
 Server::Server(int port) : id_counter_(0) {
-  sockaddr_in address = {0};
-  address.sin_family = AF_INET;
-  address.sin_port = htons(static_cast<uint16_t>(port));
-  address.sin_addr.s_addr = INADDR_ANY;
-
-  if (bind(socket_, (sockaddr*)&address, sizeof(address)) < 0) {
+  auto address = MakeAddress(port);
+  if (bind(socket_, &address, sizeof(address)) < 0) {
     throw std::runtime_error("bind()");
   }
 
@@ -31,68 +28,36 @@ Server::Server(int port) : id_counter_(0) {
 }
 
 void Server::Run() {
-  bool exit = false;
-  int signal = eventfd(0, EFD_NONBLOCK);
 
-  std::thread input_thread(InputHanding, signal);
-  std::thread handler_thread(Handler::Run, &handler_, &users_);
-  input_thread.detach();
-  handler_thread.detach();
-
-  while (true) {
-    epoll_event events[20] = {0};
-    int count_events = Epoll(20, events, signal, &users_);
-
-    for (int i = 0; i < count_events; ++i) {
-      if (events[i].data.ptr == nullptr) {
-        AcceptConnection();
-      } else {
-        auto* user = (User*)events[i].data.ptr;
-        if (user->socket_ == signal) {
-          exit = Stop(&users_);
-          break;
-        } else {
-          ProcessPackages(*user);
-        }
-      }
-    }
-
-    std::for_each(users_.begin(), users_.end(), [&](std::pair<int, User> user) {
-      while (!user.second.buffer_.empty()) {
-        SendMessage(user.second.socket_, user.second.buffer_.front());
-        user.second.buffer_.pop();
-      }
-    });
-
-    if (exit) { break; }
-  }
 }
 
-void Server::InputHanding(int signal) {
-  int exit_flag = 0;
+void Server::InputHandling(int signal) {
+  bool exit_flag;
+  std::string command;
   do {
-    exit_flag = 1;
-    std::string command = Input();
+    command = Input();
     if (command == "stop") {
       eventfd_write(signal, 1);
+      exit_flag = true;
     } else {
       std::cout << "Unknown command" << std::endl;
-      exit_flag = 0;
+      exit_flag = false;
     }
-  } while (exit_flag == 0);
+  } while (!exit_flag);
 }
 
 void Server::AcceptConnection() {
-  int user_fd = 0;
+  int socket = 0;
   while (true) {
-    user_fd = accept(socket_, nullptr, nullptr);
-    if (user_fd != -1) { break; }
+    socket = accept(socket_, nullptr, nullptr);
+    if (socket != -1) { break; }
     if (errno == EINTR || errno == ECONNABORTED) { continue; }
     throw std::runtime_error("accept()");
   }
-  fcntl(user_fd, F_SETFL, O_NONBLOCK);
-  int user_id = AddUser(user_fd);
-  SendMessage(user_fd, "Hello, you ID is #" + std::to_string(user_id));
+  fcntl(socket, F_SETFL, O_NONBLOCK);
+  int id = AddUser(socket);
+  std::string message = "Hello, your ID is #" + std::to_string(id);
+  SendPackage(socket, message);
 }
 
 int Server::AddUser(int socket) {
@@ -103,19 +68,25 @@ int Server::AddUser(int socket) {
     id = *free_ids_.begin();
     free_ids_.erase(free_ids_.begin());
   }
-
-  users_[id] = User(socket, id);
+  users_[id].id_ = id;
+  users_[id].socket_ = socket;
   return id;
 }
 
-void Server::ProcessPackages(User& user) {
-  std::string package = RecvMessage(user.socket_);
-  if (package.length() == 0) {
-    CloseConnection(user.socket_);
-  } else {
-    handler_.Push(ParseMessage(package), user.id_);
-  }
+void coffee_chat::Server::RemoveUser(int id) {
+  CloseConnection(users_[id].socket_);
+  users_.erase(id);
+  free_ids_.insert(id);
+}
 
+void Server::ProcessPackages(int id) {
+  std::string package = RecvPackage(users_[id].socket_);
+  if (package.length() == 0) {
+    RemoveUser(id);
+  } else {
+    auto packages = ParsePackage(package);
+    handler_.Push(packages, id);
+  }
 }
 
 }  // namespace coffee_chat

@@ -1,5 +1,6 @@
 #include <unistd.h>
-#include <mutex>
+#include <algorithm>
+#include <map>
 #include <queue>
 #include <sstream>
 #include <string>
@@ -9,45 +10,76 @@
 
 namespace coffee_chat {
 
-void Handler::Run(Handler* handler, std::map<int, User>* users_ptr) {
-  auto& users = *users_ptr;
-  while (true) {
-    if (!handler->buffer_.empty()) {
-      std::queue<std::string> packages;
+Handler::Handler() : users_(nullptr) {}
 
-      handler->buffer_mutex_.lock();
-      std::swap(packages, handler->buffer_);
-      handler->buffer_mutex_.unlock();
+void Handler::Run(Handler* handler, std::map<int, User>* users_pointer) {
+  handler->users_ = users_pointer;
+  auto& users = *users_pointer;
+  std::queue<std::string> packages;
+  std::istringstream stream;
+  std::string command;
+
+  while (true) {
+    if (!handler->packages_.empty()) {
+      handler->packages_mutex_.lock();
+      std::swap(packages, handler->packages_);
+      handler->packages_mutex_.unlock();
 
       while (!packages.empty()) {
-        int id = 0;
-        std::string command;
-        std::stringstream stream(packages.front());
+        stream.str(packages.front());
         packages.pop();
+
+        int id;
         stream >> id;
         stream >> command;
+
         if (command == "msg") {
-          int recipient_id;
-          stream >> recipient_id;
-          std::string message = "[" + std::to_string(id) + "]: " + stream.str();
-          users[recipient_id].buffer_.push(message);
+          handler->RunMsg(id, stream);
+        } else if (command == "quit") {
+          handler->RunQuit(users[id]);
         } else {
-          users[id].buffer_.push("Unknown command");
+          handler->PutPackage(users[id], "Unknown command");
         }
       }
     } else {
-      usleep(500);
+      usleep(200);
     }
   }
 }
 
-void Handler::Push(std::queue<std::string> packages, int id) {
+void Handler::Push(std::queue<std::string>& packages, int id) {
+  std::string package;
   while (!packages.empty()) {
-    buffer_mutex_.lock();
-    buffer_.push(std::to_string(id) + " " + packages.front());
-    buffer_.pop();
-    buffer_mutex_.unlock();
+    package = std::to_string(id) + ' ' + packages.front();
+    packages.pop();
+    packages_mutex_.lock();
+    packages_.push(package);
+    packages_mutex_.unlock();
   }
+}
+
+void Handler::PutPackage(User& user, std::string package) {
+  user.mutex_.lock();
+  user.packages_.push(package);
+  user.mutex_.unlock();
+}
+
+void Handler::RunMsg(int id, std::istringstream& stream) {
+  auto& users = *users_;
+  int recipient_id;
+  stream >> recipient_id;
+
+  if (users_->find(recipient_id) != users_->end()) {
+    std::string package;
+    std::getline(stream, package);
+    PutPackage(users[recipient_id], package);
+  } else {
+    PutPackage(users[id], "User is not found");
+  }
+}
+
+void Handler::RunQuit(User& user) {
+  user.disable_flag_ = true;
 }
 
 }  // namespace coffee_chat

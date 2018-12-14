@@ -5,7 +5,6 @@
 #include <set>
 #include <handler.h>
 
-
 #include "connection.h"
 #include "handler.h"
 #include "user.h"
@@ -17,10 +16,13 @@ class Server : public Connection {
   explicit Server(int = default_port_);
   void Run() override;
  private:
-  static void InputHanding(int);
+  friend class Handler;
+
+  static void InputHandling(int);
   void AcceptConnection();
   int AddUser(int);
-  void ProcessPackages(User&);
+  void RemoveUser(int);
+  void ProcessPackages(int);
 
   int id_counter_;
   std::set<int> free_ids_;
