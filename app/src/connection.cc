@@ -1,5 +1,4 @@
 #include <arpa/inet.h>
-#include <fcntl.h>
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <sys/socket.h>
@@ -28,13 +27,11 @@ Connection::Connection() : socket_(socket(AF_INET, SOCK_STREAM, 0)),
   if (socket_ < 0) {
     throw std::runtime_error("socket()");
   }
-  fcntl(socket_, F_SETFL, O_NONBLOCK);
 }
 
 std::string Connection::Input() {
   std::string message;
-  std::cout << "-> ";
-  std::cin >> message;
+  getline(std::cin, message);
   return message;
 }
 
@@ -53,7 +50,7 @@ sockaddr Connection::MakeAddress(int port, char* ip) {
   return *(sockaddr*)&address;
 }
 
-void Connection::SendPackage(int socket, std::string package) {
+void Connection::SendPackage(int socket, const std::string& package) {
   send(socket, (package + '\n').c_str(), package.length() + 1, 0);
 }
 

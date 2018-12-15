@@ -23,7 +23,7 @@ class Connection {
  protected:
   static std::string Input();
   sockaddr MakeAddress(int, char* = nullptr);
-  void SendPackage(int, std::string);
+  void SendPackage(int, const std::string&);
   std::string RecvPackage(int);
   std::queue<std::string> ParsePackage(std::string&);
   int Epoll(epoll_event*, int, std::map<int, User>* = nullptr);

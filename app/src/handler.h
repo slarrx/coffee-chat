@@ -17,7 +17,6 @@ class Handler {
   static void Run(Handler*, std::map<int, User>*);
   void Push(std::queue<std::string>&, int);
  private:
-  void PutPackage(User&, std::string);
   void RunMsg(int, std::istringstream&);
   void RunQuit(User&);
 

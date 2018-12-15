@@ -16,9 +16,8 @@ class Server : public Connection {
   explicit Server(int = default_port_);
   void Run() override;
  private:
-  friend class Handler;
-
   static void InputHandling(int);
+  static void UserProcessing(Server*);
   void AcceptConnection();
   int AddUser(int);
   void RemoveUser(int);

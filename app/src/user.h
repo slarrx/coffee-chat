@@ -12,6 +12,20 @@ class User {
   explicit User(int socket = 0, int id = 0)
       : socket_(socket), id_(id), disable_flag_(false) {};
 
+  void PushPackage(const std::string& package) {
+    mutex_.lock();
+    packages_.push(package);
+    mutex_.unlock();
+  }
+
+  std::string PopPackage() {
+    mutex_.lock();
+    auto package = packages_.front();
+    packages_.pop();
+    mutex_.unlock();
+    return package;
+  }
+
   int socket_;
   int id_;
   bool disable_flag_;

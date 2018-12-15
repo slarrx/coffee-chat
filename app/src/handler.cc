@@ -38,8 +38,10 @@ void Handler::Run(Handler* handler, std::map<int, User>* users_pointer) {
         } else if (command == "quit") {
           handler->RunQuit(users[id]);
         } else {
-          handler->PutPackage(users[id], "Unknown command");
+          users[id].PushPackage("Unknown command");
         }
+
+        stream.clear();
       }
     } else {
       usleep(200);
@@ -58,12 +60,6 @@ void Handler::Push(std::queue<std::string>& packages, int id) {
   }
 }
 
-void Handler::PutPackage(User& user, std::string package) {
-  user.mutex_.lock();
-  user.packages_.push(package);
-  user.mutex_.unlock();
-}
-
 void Handler::RunMsg(int id, std::istringstream& stream) {
   auto& users = *users_;
   int recipient_id;
@@ -72,9 +68,10 @@ void Handler::RunMsg(int id, std::istringstream& stream) {
   if (users_->find(recipient_id) != users_->end()) {
     std::string package;
     std::getline(stream, package);
-    PutPackage(users[recipient_id], package);
+    package.erase(0, 1);
+    users[recipient_id].PushPackage(std::to_string(id) + ": " + package);
   } else {
-    PutPackage(users[id], "User is not found");
+    users[id].PushPackage("User is not found");
   }
 }
 
