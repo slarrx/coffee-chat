@@ -1,9 +1,11 @@
 #include <unistd.h>
+#include <iostream>
 #include <algorithm>
 #include <map>
 #include <queue>
 #include <sstream>
 #include <string>
+#include <fstream>
 
 #include "handler.h"
 #include "user.h"
@@ -33,10 +35,14 @@ void Handler::Run(Handler* handler, std::map<int, User>* users_pointer) {
         stream >> id;
         stream >> command;
 
-        if (command == "msg") {
+        if (command[0] != '/') {
+          handler->RunMsgAll(id, stream);
+        } else if (command == "/msg") {
           handler->RunMsg(id, stream);
-        } else if (command == "quit") {
+        } else if (command == "/quit") {
           handler->RunQuit(users[id]);
+        } else if (command == "/file") {
+          handler->RunFile(id, stream);            
         } else {
           users[id].PushPackage("Unknown command");
         }
@@ -69,7 +75,41 @@ void Handler::RunMsg(int id, std::istringstream& stream) {
     std::string package;
     std::getline(stream, package);
     package.erase(0, 1);
-    users[recipient_id].PushPackage(std::to_string(id) + ": " + package);
+    users[recipient_id].PushPackage('[' + std::to_string(id) + "]: " + package);
+  } else {
+    users[id].PushPackage("User is not found");
+  }
+}
+
+void Handler::RunMsgAll(int id, std::istringstream& stream) {
+  auto& users = *users_;
+
+  for (auto& user : users) {
+    std::string package = std::move(stream.str());
+    package.erase(0, package.find(' ') + 1);
+    user.second.PushPackage('[' + std::to_string(id) + "]: " + package);
+  }
+}
+
+void Handler::RunFile(int id, std::istringstream& stream) {
+  auto& users = *users_;
+  int recipient_id;
+  stream >> recipient_id;
+
+  if (users_->find(recipient_id) != users_->end()) {
+    std::string package;
+    std::getline(stream, package);
+    package.erase(0, 1);
+    users[recipient_id].PushPackage("File from [" + std::to_string(id) + "]");
+    std::ofstream file("/home/nds/Downloads");
+    
+    if (!file.is_open()) {
+        std::cout << "File not found" << std::endl;
+        return;
+    }
+
+    file << package;
+    file.close();
   } else {
     users[id].PushPackage("User is not found");
   }

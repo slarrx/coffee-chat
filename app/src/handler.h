@@ -18,6 +18,8 @@ class Handler {
   void Push(std::queue<std::string>&, int);
  private:
   void RunMsg(int, std::istringstream&);
+  void RunMsgAll(int, std::istringstream&);
+  void RunFile(int, std::istringstream&);
   void RunQuit(User&);
 
   std::map<int, User>* users_;

@@ -5,7 +5,10 @@
 #include <cerrno>
 #include <iostream>
 #include <stdexcept>
+#include <iomanip>
 #include <thread>
+#include <fstream>
+#include <sstream>
 
 #include "client.h"
 
@@ -34,8 +37,8 @@ void Client::Run() {
     if (!package.empty()) {
       packages = ParsePackage(package);
       while (!packages.empty()) {
-        std::cout << "-> ";
-        std::cout << packages.front() << std::endl;
+        std::cout << "\r" << std::right << std::setw(50) << packages.front() << std::endl;
+        std::cout << "-> " << std::flush;
         packages.pop();
       }
     } else {
@@ -47,8 +50,31 @@ void Client::Run() {
 
 void Client::InputHandling(Client* client) {
   while (true) {
-    std::string command = Input();
-    client->SendPackage(client->socket_, command);
+    std::cout << "-> ";
+    std::string input = Input();
+
+    std::string command = input.substr(0, input.find(' '));
+
+    if (command == "/file") {
+        std::string path = input.substr(input.find(' ') + 1, input.size());
+        input.erase(input.find(' ') + 1, input.size());
+        input.append("2 ");
+        std::fstream file(path);
+
+        if (!file.is_open()) {
+            std::cout << "\rFile not found!" << std::endl << "-> " << std::flush;
+            return;
+        }
+
+        while (!file.eof()) {
+            std::string tmp;
+            file >> tmp;
+            input.append(tmp);
+        }
+
+        file.close();
+    }
+    client->SendPackage(client->socket_, input);
   }
 }
 
