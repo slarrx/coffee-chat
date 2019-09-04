@@ -1,0 +1,6 @@
+Version 2.8.0: 2019-09-04
+- fix: UA: constant relaunching of impersonator when no displays are detected on client machine
+- fix: extension is tripled when saving transferred file on client machine (#3505) - for some file types
+- fix: chat in WinRD client doesn't display line break (#3540)
+- chg: message length limit in RD client to match that on website (#3541)
+
